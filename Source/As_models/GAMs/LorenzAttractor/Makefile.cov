@@ -1,0 +1,6 @@
+# License : TBA
+
+TARGET=cov
+
+include Makefile.inc
+

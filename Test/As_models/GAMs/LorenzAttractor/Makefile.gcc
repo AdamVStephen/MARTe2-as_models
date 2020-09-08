@@ -1,0 +1,7 @@
+# License : TBA
+
+INCLUDES += -I$(MARTe2_DIR)/Lib/gtest-1.7.0/include
+
+OBJSX = LorenzAttractorGTest.x
+
+include Makefile.inc
