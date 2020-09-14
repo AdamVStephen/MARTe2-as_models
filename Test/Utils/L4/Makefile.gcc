@@ -1,0 +1,13 @@
+###################################################################
+# LICENSE
+#
+# Copyright 2020 United Kingdom Atomic Energy Authority
+#
+# Licensing terms of this software have yet to be approved.
+###################################################################
+
+INCLUDES += -I$(MARTe2_DIR)/Lib/gtest-1.7.0/include
+
+OBJSX = ConfigurationDatabaseUtilsGTest.x
+
+include Makefile.inc

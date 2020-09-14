@@ -111,6 +111,13 @@ public:
     virtual ~LorenzAttractor();
 
     /**
+     * @brief Reads the model parameters from the configuration file.
+     * @param[in] data see GAM::Initialise. The parameters Rho, Sigma, Beta shall exist and will be read as float32 values.
+     * @return true if the parameters Rho, Sigma, Beta can be read.
+     */
+    virtual bool Initialise(MARTe::StructuredDataI & data);
+    
+    /**
      * @brief Initialises the output signal memory with default values provided through configuration.
      * @return true if the pre-conditions are met.
      * @pre
@@ -126,6 +133,11 @@ public:
     virtual bool Execute();
 
     /**
+     * @brief Export information about the component
+     */
+    virtual bool ExportData(MARTe::StructuredDataI & data);
+
+    /**
      * @brief SetOutput method.
      * @details The method is registered as a messageable function. It assumes the ReferenceContainer
      * includes a reference to a StructuredDataI instance which contains a valid 'SignalName' attribute, 
@@ -138,8 +150,49 @@ public:
      *   The 'SignalValue' provided corresponds to the expected type and dimensionality.
      */
     ErrorManagement::ErrorType SetOutput(ReferenceContainer& message);
-};
 
+
+ private :
+     /**
+     * The input signal (x,y,z) at t_N
+     */
+    MARTe::float32 *inputSignal[3];
+
+    /**
+     * The output signals (x',y',z'x,y,z) at t_N+1
+     */
+    MARTe::float32 *outputSignal[6];
+
+    /**
+     * The model parameters
+     */
+    MARTe::float32 Rho;
+
+    MARTe::float32 Sigma;
+
+    MARTe::float32 Beta;
+
+    /**
+     * Internal housekeeping.
+     */
+
+    MARTe::uint64 steps;
+    MARTe::float32 model_time;
+    MARTe::float32 model_timestep;
+
+    MARTe::float32 x0;
+    MARTe::float32 y0;
+    MARTe::float32 z0;
+
+    MARTe::float32 x1;
+    MARTe::float32 y1;
+    MARTe::float32 z1;
+    
+    MARTe::float32 dx;
+    MARTe::float32 dy;
+    MARTe::float32 dz;
+    
+};
 }
 
 /*---------------------------------------------------------------------------*/

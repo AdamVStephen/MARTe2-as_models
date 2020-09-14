@@ -6,25 +6,21 @@
 # Licensing terms of this software have yet to be approved.
 ###################################################################
 
+OBJSX= 
 
-SPB = Source/As_models/GAMs.x
-SPB += Source/Utils.x
-SPB += Test/As_models/GAMs.x
-SPB += Test/Utils.x
-SPB += Test/GTest.x
+SPB = L4.x
 
+PACKAGE=.
+ROOT_DIR=../..
 MAKEDEFAULTDIR=$(MARTe2_DIR)/MakeDefaults
 
-ROOT_DIR=.
 include $(MAKEDEFAULTDIR)/MakeStdLibDefs.$(TARGET)
 
-all: $(OBJS) $(SUBPROJ) check-env
+LIBRARIES_STATIC = $(BUILD_DIR)/L4/ConfigurationDatabaseUtils$(LIBEXT)
+
+all: $(OBJS)  $(SUBPROJ)  \
+    $(BUILD_DIR)/Utils$(LIBEXT) \
+    $(BUILD_DIR)/Utils$(DLLEXT)
 	echo  $(OBJS)
 
 include $(MAKEDEFAULTDIR)/MakeStdLibRules.$(TARGET)
-
-check-env:
-ifndef MARTe2_DIR
-    $(error MARTe2_DIR is undefined)
-endif
-

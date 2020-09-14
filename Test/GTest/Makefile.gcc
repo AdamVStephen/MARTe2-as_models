@@ -12,6 +12,8 @@ INCLUDES += -I$(MARTe2_DIR)/Lib/gtest-1.7.0/include
 
 LIBRARIES   += ../../Build/$(TARGET)/As_models/GAMs/GAMs$(LIBEXT)
 LIBRARIES   += ../../Build/$(TARGET)/As_models/GAMs/GAMsTests$(LIBEXT)
+LIBRARIES   += ../../Build/$(TARGET)/Utils/Utils$(LIBEXT)
+LIBRARIES   += ../../Build/$(TARGET)/Utils/UtilsTests$(LIBEXT)
 
 LIBRARIES   += -L$(MARTe2_DIR)/Build/$(TARGET)/Core/ -lMARTe2
 LIBRARIES   += $(MARTe2_DIR)/Lib/gtest-1.7.0/libgtest.a $(MARTe2_DIR)/Lib/gtest-1.7.0/libgtest_main.a
