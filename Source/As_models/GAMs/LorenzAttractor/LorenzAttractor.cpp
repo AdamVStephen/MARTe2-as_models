@@ -69,6 +69,10 @@ namespace MARTe {
     steps = 0;
     x0 = y0 = z0 = x1 = y1 = z1 = dx = dy = dz = 0.0;
 
+    x_ic = y_ic = z_ic = 0;
+
+    requestResetIC = true;
+
  
     for(int i = 0; i < 3; i++) {
       inputSignal[i] = NULL_PTR(MARTe::float32 *);
@@ -77,10 +81,21 @@ namespace MARTe {
       outputSignal[i] = NULL_PTR(MARTe::float32 *);
     }
 
+    /* Alternative idiom for message filter.  See also end of Setup() for enabled method
+
+       ReferenceT<RegisteredMethodsMessageFilter> filter(GlobalObjectsDatabase::Instance()->GetStandardHeap());
+       filter->SetDestination(this);
+       MessageI::InstallMessageFilter(filter);
+
+    */
+    
   }
   
   LorenzAttractor::~LorenzAttractor() {
-    
+    if (GetName() != NULL) {
+      REPORT_ERROR_STATIC(MARTe::ErrorManagement::Information, "No more references pointing at %s [%s]. "
+			  "The Object will be safely deleted.", GetName(), GetClassProperties()->GetName());
+    }
   }
 
   bool LorenzAttractor::Initialise(MARTe::StructuredDataI & data) {
@@ -203,14 +218,15 @@ namespace MARTe {
 	
       }
 
-      	// Parse Default if provided for input signals
+      // Parse Default if provided for input signals
       
       if (ok) {
 	ok = MoveToSignalIndex(InputSignals, 0u);
 	if (ok) {
-	  ok = configuredDatabase.Read("Default", x0);
+	  ok = configuredDatabase.Read("Default", x_ic);
 	  if (!ok) {
-	    *inputSignal[0] = 1.0;
+	    x_ic = 1e-16;
+	    *inputSignal[0] = x_ic;
 	    REPORT_ERROR(ErrorManagement::ParametersError,
 			 "No initial condition provided for X, setting to %f", *inputSignal[0]);
 
@@ -219,9 +235,10 @@ namespace MARTe {
 	}
 	ok = MoveToSignalIndex(InputSignals, 1u);
 	if (ok) {
-	  ok = configuredDatabase.Read("Default", y0);
+	  ok = configuredDatabase.Read("Default", y_ic);
 	  if (!ok) {
-	    *inputSignal[1] = 2.0;
+	    y_ic = 0;
+	    *inputSignal[1] = y_ic;
 	    REPORT_ERROR(ErrorManagement::ParametersError,
 			 "No initial condition provided for Y, setting to %f", *inputSignal[1]);
 		    
@@ -230,9 +247,10 @@ namespace MARTe {
 	}
 	ok = MoveToSignalIndex(InputSignals, 2u);
 	if (ok) {
-	  ok = configuredDatabase.Read("Default", z0);
+	  ok = configuredDatabase.Read("Default", z_ic);
 	  if (!ok) {
-	    *inputSignal[2] = -4.0;
+	    z_ic = 0.0;
+	    *inputSignal[2] = z_ic;
 	    REPORT_ERROR(ErrorManagement::ParametersError,
 			 "No initial condition provided for Z, setting to %f", *inputSignal[2]);
 	    
@@ -240,7 +258,6 @@ namespace MARTe {
 	  }
 	}
       }
-
       
       // --------------------------------------------------------------------------------------
       // Output Signals
@@ -330,26 +347,23 @@ namespace MARTe {
 
   bool LorenzAttractor::Execute() {
 
-    //float32 dx,dy,dz;
-    //float32 x0,y0,z0;
-    //float32 x1,y1,z1;
-
     steps += 1;
     model_time = model_timestep*steps;
-  
-    x0 = *inputSignal[0u];
-    y0 = *inputSignal[1u];
-    z0 = *inputSignal[2u];
 
+    if (requestResetIC) {
+      x0 = x_ic;
+      y0 = y_ic;
+      z0 = z_ic;
+      requestResetIC = false;
+      REPORT_ERROR(ErrorManagement::Information, "Reset to IC %f %f %f", x_ic, y_ic, z_ic);
+    } else {
+      x0 = *inputSignal[0u];
+      y0 = *inputSignal[1u];
+      z0 = *inputSignal[2u];
+    }
+    
     REPORT_ERROR(ErrorManagement::Information, "Inputs %f %f %f", x0, y0, z0);
     REPORT_ERROR(ErrorManagement::Information, "PRE Inputs %f %f %f", *inputSignal[0], *inputSignal[1], *inputSignal[2]);
-
-    if (steps == 5) {
-      x0 = 0.2;
-      y0 = 0.2;
-      z0 = 0.2;
-      REPORT_ERROR(ErrorManagement::Information, "Reset IC to 0.2");
-    }
 
     dx = Sigma * (y0 - x0);
     dy = x0 * (Rho - z0) - y0;
@@ -396,6 +410,21 @@ namespace MARTe {
       ok = data.MoveToAncestor(1u);
     }
     if (ok) {
+      ok = data.CreateRelative("Initial Conditions");
+    }
+    if (ok) {
+      ok = data.Write("x_ic", x_ic);
+    }
+    if (ok) {
+      ok = data.Write("y_ic", y_ic);
+    }
+    if (ok) {
+      ok = data.Write("z_ic", z_ic);
+    }
+    if (ok) {
+      ok = data.MoveToAncestor(1u);
+    }
+    if (ok) {
       ok = data.CreateRelative("Position");
     }
     if (ok) {
@@ -428,7 +457,7 @@ namespace MARTe {
     return ok;
   }
 
-  ErrorManagement::ErrorType LorenzAttractor::SetOutput(ReferenceContainer& message) {
+  ErrorManagement::ErrorType LorenzAttractor::SetParameters(ReferenceContainer& message) {
 
     ErrorManagement::ErrorType ret = ErrorManagement::NoError;
 
@@ -446,71 +475,55 @@ namespace MARTe {
       REPORT_ERROR(ret, "Message does not contain a ReferenceT<StructuredDataI>");
     }
 
-    StreamString signalName;
-    uint32 signalIndex = 0u;
-
+    float32 Rho_was = Rho;
+    
     if (ok) {
-      if (data->Read("SignalName", signalName)) {
-	ok = GetSignalIndex(OutputSignals, signalIndex, signalName.Buffer());
+      if (data->Read("Rho", Rho)) {
+	REPORT_ERROR(ErrorManagement::Information, "SetParameters Rho %f -> %f",
+		     Rho_was, Rho);
       }
       else {
-	ok = data->Read("SignalIndex", signalIndex);
+	REPORT_ERROR(ErrorManagement::Information, "SetParameters Rho not defined");
       }
     }
 
-    if (ok) {
-      ok = (signalIndex < GetNumberOfOutputSignals());
-    }
+    return ok;
+  }
 
-    if (!ok) {
-      ret = ErrorManagement::ParametersError;
-      REPORT_ERROR(ret, "No valid signal name or index provided");
-    }
 
-    TypeDescriptor signalType = InvalidType;
+  ErrorManagement::ErrorType LorenzAttractor::ResetInitialConditions() {
 
-    if (ok) {
-      signalType = GetSignalType(OutputSignals, signalIndex);
-      ok = (signalType != InvalidType);
-    }
+    ErrorManagement::ErrorType ret = ErrorManagement::NoError;
 
-    if (ok) {
+    REPORT_ERROR(ErrorManagement::Information, "Resetting initial conditions for next cycle");
 
-      // Signal index and type are tested and valid ... go ahead with AnyType instantiation
-
-      // Use the default value type to query the signal properties (dimensions, ...)
-      /*lint -e{534}  [MISRA C++ Rule 0-1-7], [MISRA C++ Rule 0-3-2]. Justification: SignalIndex is tested valid prio to this part of the code.*/
-      MoveToSignalIndex(OutputSignals, signalIndex);
-      AnyType signalDefType = configuredDatabase.GetType("Default");
-      AnyType signalNewValue(signalType, 0u, GetOutputSignalMemory(signalIndex));
-
-      uint8 signalNumberOfDimensions = signalDefType.GetNumberOfDimensions();
-      signalNewValue.SetNumberOfDimensions(signalNumberOfDimensions);
-
-      uint32 dimensionIndex;
-
-      for (dimensionIndex = 0u; dimensionIndex < signalNumberOfDimensions; dimensionIndex++) {
-	uint32 dimensionNumberOfElements = signalDefType.GetNumberOfElements(static_cast<uint32>(dimensionIndex));
-	signalNewValue.SetNumberOfElements(static_cast<uint32>(dimensionIndex), dimensionNumberOfElements);
-      }
-
-      if (data->Read("SignalValue", signalNewValue)) {
-	REPORT_ERROR(ErrorManagement::Information, "Signal '%!' new value '%!'", signalName.Buffer(), signalNewValue);
-      }
-      else {
-	ret = ErrorManagement::ParametersError;
-	REPORT_ERROR(ret, "Failed to read and apply new signal value");
-      }
-
-    }
+    requestResetIC = true;
 
     return ret;
   }
 
+  ErrorManagement::ErrorType LorenzAttractor::SetRho(float32 rho) {
+
+    ErrorManagement::ErrorType ret = ErrorManagement::NoError;
+
+    float32 Rho_was = Rho;
+    Rho = rho;
+    
+    REPORT_ERROR(ErrorManagement::Information, "Resetting rho from %f to %f", Rho_was, Rho);
+
+    requestResetIC = true;
+
+    return ret;
+  }
+
+  
   CLASS_REGISTER(LorenzAttractor, "1.0")
 
   /*lint -e{1023} Justification: Macro provided by the Core.*/
   //CLASS_METHOD_REGISTER(LorenzAttractor, SetOutput)
 
+  CLASS_METHOD_REGISTER(LorenzAttractor, ResetInitialConditions)
+  CLASS_METHOD_REGISTER(LorenzAttractor, SetRho)
+  
 } /* namespace MARTe */
 

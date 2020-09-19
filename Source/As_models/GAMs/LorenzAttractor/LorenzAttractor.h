@@ -152,6 +152,19 @@ public:
     ErrorManagement::ErrorType SetOutput(ReferenceContainer& message);
 
 
+    ErrorManagement::ErrorType SetParameters(ReferenceContainer& message);
+
+    /**
+     * @brief Example of an RPC taking no parameters
+     */
+    MARTe::ErrorManagement::ErrorType ResetInitialConditions();
+
+    /**
+     * @brief Example of an RPC taking no one parameter
+     */
+    MARTe::ErrorManagement::ErrorType SetRho(MARTe::float32 rho);
+
+
  private :
      /**
      * The input signal (x,y,z) at t_N
@@ -191,6 +204,12 @@ public:
     MARTe::float32 dx;
     MARTe::float32 dy;
     MARTe::float32 dz;
+
+    MARTe::float32 x_ic;
+    MARTe::float32 y_ic;
+    MARTe::float32 z_ic;
+
+    bool requestResetIC;
     
 };
 }
